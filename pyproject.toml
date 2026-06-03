@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cot-positioning"
+version = "0.1.0"
+description = "CFTC Commitments of Traders fetch + positioning visualizations (context tool, not a signal generator)"
+readme = "README.md"
+# Spec target is Python 3.11+. We keep the source syntactically 3.9-safe so it also
+# runs/tests on older interpreters; 3.11+ is a fully supported superset.
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.28",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+    "pyarrow>=12",
+    "yfinance>=0.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+cot = "cot.cli:main"
+
+[tool.setuptools]
+packages = ["cot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
