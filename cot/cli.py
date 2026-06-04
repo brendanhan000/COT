@@ -29,7 +29,8 @@ from .transform import (
     tidy_positions,
     validate,
 )
-from .viz import build_html, render_contract
+from .viz import render_contract
+from .viz_interactive import build_contract_figure, build_interactive_html
 
 
 def _split_contracts(values: Optional[Sequence[str]]) -> List[str]:
@@ -78,6 +79,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--outdir", default="output", help="Output directory.")
     p.add_argument("--cachedir", default=".cache", help="Parquet cache directory.")
     p.add_argument("--no-price", action="store_true", help="Skip the price overlay panel.")
+    p.add_argument(
+        "--png",
+        action="store_true",
+        help="Also write static matplotlib PNGs (the interactive HTML is always produced).",
+    )
+    p.add_argument(
+        "--plotly-cdn",
+        action="store_true",
+        help="Load plotly.js from CDN instead of embedding it (smaller HTML, needs internet to view).",
+    )
     p.add_argument(
         "--app-token",
         default=None,
@@ -230,13 +241,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
 
     # --- visuals ---------------------------------------------------------------
-    charts = []
+    from .align import PriceResult
+
     present_contracts = [n for n in resolved_names if n and n in set(out["contract"])]
+    figures = []
+    png_charts = []
     for contract in present_contracts:
         tdates = out[out["contract"] == contract]["report_date"]
         if args.no_price:
-            from .align import PriceResult
-
             price = PriceResult(
                 aligned=pd.DataFrame(columns=["report_date", "price"]),
                 ticker=None,
@@ -247,7 +259,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ticker = guess_price_ticker(contract)
             price = build_price_overlay(contract, ticker, tdates)
         print("  [%s] %s" % (contract, price.note))
-        charts.append(render_contract(out, spec, contract, price, chartdir))
+        as_of = pd.Timestamp(out[out["contract"] == contract]["report_date"].max())
+        figures.append((contract, as_of, build_contract_figure(out, spec, contract, price)))
+        if args.png:
+            png_charts.append(render_contract(out, spec, contract, price, chartdir))
 
     html_path = outdir / "cot_report.html"
     meta = {
@@ -256,7 +271,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "COT window (wk)": str(args.lookback_weeks),
         "latest as-of": fr.latest_as_of.strftime("%Y-%m-%d"),
     }
-    build_html(charts, html_path, meta, val.warnings)
+    build_interactive_html(figures, html_path, meta, val.warnings, embed=not args.plotly_cdn)
 
     # --- summary ---------------------------------------------------------------
     print("\nWrote:")
@@ -266,10 +281,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("  %s" % (outdir / "cot_divergence.csv"))
     if not snap.empty:
         print("  %s" % (outdir / "cot_latest_snapshot.csv"))
-    for ch in charts:
-        for path in ch.pngs.values():
-            print("  %s" % path)
-    print("  %s  <- open this" % html_path)
+    if args.png:
+        for ch in png_charts:
+            for path in ch.pngs.values():
+                print("  %s" % path)
+    print("  %s  <- open this (interactive: drag/scroll to zoom, toolbar zoom in/out)" % html_path)
     print("\n" + disclaimers.GUARDRAIL_NOTE)
     return 0
 

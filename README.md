@@ -22,8 +22,9 @@ and renders clean visuals of trader positioning.
   trader counts, week-over-week change, and a descriptive Commercial-vs-spec
   divergence.
 - Caches full history to parquet and **fetches only new weeks** on later runs.
-- Emits per-contract PNG panels, a self-contained combined **HTML** report, and a
-  tidy **parquet/CSV** export for your dashboard.
+- Emits an **interactive** combined HTML report (Plotly: zoom / pan / hover,
+  synchronized across panels), optional static PNGs (`--png`), and a tidy
+  **parquet/CSV** export for your dashboard.
 - Validates the data: weekly gaps, contracts that returned nothing, non-Tuesday
   as-of dates, and an open-interest reconciliation check.
 
@@ -72,13 +73,14 @@ COT_t = 100 · (net_t − min(net over [t−W+1 … t])) / (max(...) − min(...
 
 ```bash
 pip install -e .
-# runtime deps: requests, pandas, numpy, matplotlib, pyarrow, yfinance
+# runtime deps: requests, pandas, numpy, plotly, matplotlib, pyarrow, yfinance
 ```
 
 Spec target is Python 3.11+. The source is kept syntactically 3.9-safe so it
 also runs/tests on older interpreters; 3.11+ is a supported superset. This build
-uses `requests` (not `sodapy`) and `matplotlib` + embedded-PNG HTML (not
-`plotly`) — both are allowed by the brief and avoid extra dependencies.
+uses `requests` (not `sodapy`). The combined HTML report is **interactive**
+(Plotly, plotly.js embedded so it works offline); optional static PNGs (`--png`)
+are rendered with `matplotlib`.
 
 ## Usage
 
@@ -99,7 +101,8 @@ python -m cot.cli --list-contracts
 
 Key flags: `--contracts`, `--report-type {legacy,tff}`,
 `--fut-combined {futonly,combined}`, `--start/--end`, `--lookback-weeks`,
-`--min-periods`, `--outdir`, `--cachedir`, `--no-price`, `--app-token`,
+`--min-periods`, `--outdir`, `--cachedir`, `--no-price`, `--png` (also write
+static PNGs), `--plotly-cdn` (slimmer HTML, needs internet), `--app-token`,
 `--refresh-full`, `--list-contracts`. See `python -m cot.cli --help`.
 
 Contract names are fuzzy-matched against the official `contract_market_name`
@@ -113,8 +116,13 @@ carries an " INDEX" suffix.
   with net, COT index, %OI, WoW change, trader counts.
 - `cot_divergence.csv` — descriptive net(spec) − net(hedger).
 - `cot_latest_snapshot.csv` — most recent week per contract/category.
-- `charts/<contract>_{1_net,2_cotindex,3_net_vs_price,4_divergence}.png`.
-- `cot_report.html` — self-contained combined report (open this).
+- `cot_report.html` — **interactive** combined report; open this. Drag or scroll
+  to zoom, toolbar for zoom in/out & reset, double-click to autoscale, unified
+  hover, click legend to toggle series. The four panels share one time axis, so
+  zooming one zooms all. Self-contained by default (`--plotly-cdn` for a smaller,
+  CDN-linked file).
+- `charts/<contract>_{1_net,2_cotindex,3_net_vs_price,4_divergence}.png` — static
+  matplotlib panels, only written with `--png`.
 
 ## Modules
 
@@ -124,7 +132,8 @@ carries an " INDEX" suffix.
   validation/reconciliation, tolerant field resolution.
 - `cot/align.py` — Tuesday-index checks, yfinance proxy price, backward as-of
   merge.
-- `cot/viz.py` — the four panels + combined HTML.
+- `cot/viz_interactive.py` — interactive Plotly panels + combined HTML (default).
+- `cot/viz.py` — static matplotlib panels/PNGs (used with `--png`).
 - `cot/cli.py` — orchestration and the printed transparency/guardrails.
 - `cot/config.py` — report registry and category→column candidate maps.
 
