@@ -1,0 +1,17 @@
+# Runtime dependencies for the CFTC COT positioning tool.
+# Mirrors [project].dependencies in pyproject.toml (single source of truth there).
+#   pip install -r requirements.txt
+#
+# Target interpreter is Python 3.11+ (the source is kept 3.9-safe so it also
+# runs/tests on older interpreters).
+
+requests>=2.28      # Socrata SoDA client (used instead of sodapy)
+pandas>=2.0         # tidy frames, rolling COT-index window, merge_asof alignment
+numpy>=1.24         # vectorized net / COT-index math
+plotly>=5.0         # interactive combined HTML report (zoom/pan/hover)
+matplotlib>=3.7     # static PNG panels (only when --png is passed)
+pyarrow>=12         # parquet cache + exports
+yfinance>=0.2       # proxy price series for the net-vs-price overlay
+
+# Dev / tests (optional):
+#   pip install pytest>=7
